@@ -1,139 +1,48 @@
 📚 Library Management System (LMS)
 
-A role-based Library Management System built using Express.js and PostgreSQL.
-It includes multi-layer authentication and authorization, allowing Admins, Librarians, and Users to interact through different permission levels.
+A Role-Based Library Management System built with Node.js, Express, and PostgreSQL, featuring secure authentication, layered authorization, and a request-approval workflow between librarians and admins.
 
-🚀 Features
-🧑‍💼 Role-Based Access Control
+🌟 Overview
 
-Admin – Full access to manage users, books, and librarian requests.
+This project provides a multi-role system where:
 
-Librarian – Can view and edit books, and send requests to the admin to add or delete books.
+Admins manage users, books, and librarian requests.
 
-User – Can browse and view books.
+Librarians can edit/view books and request actions (add/delete) that require admin approval.
 
-📖 Core Functionalities
+Users can browse and view available books.
 
-User Authentication: Signup, login, logout, and protected routes with JWT.
+Designed for enterprise-style role separation and scalable backend architecture.
 
-Role Authorization: Middleware-based control using authorizeRoles().
-
-Book Management:
-
-Admins can directly add, edit, or delete books.
-
-Librarians can send requests for book addition or deletion (requires admin approval).
-
-Request Management:
-
-Librarians create requests for adding or removing books.
-
-Admins can approve, reject, or revoke those requests.
-
-Action Logs: Admin can track system actions for transparency.
-
-🏗️ Tech Stack
+⚙️ Tech Stack
 Layer	Technology
-Backend	Node.js, Express.js
-Database	PostgreSQL (via pgAdmin 4)
-Auth	JWT (JSON Web Token)
-ORM / Query	SQL Queries (manual via pg package or raw SQL)
-Environment	dotenv
+Backend Framework	Express.js (Node.js)
+Database	PostgreSQL (pgAdmin 4)
+Authentication	JSON Web Tokens (JWT)
+Environment Management	dotenv
+Request Testing	Postman / Thunder Client
+🧠 Key Features
+
+✅ JWT Authentication – Secure login, signup, and token-based session control.
+✅ Role Authorization – Admin, Librarian, and User roles with custom middleware.
+✅ Book Management – CRUD for books, plus librarian request system.
+✅ Request Approval Workflow – Librarians send requests to admin for approval or rejection.
+✅ Action Logs – Every admin action is recorded for traceability.
+✅ PostgreSQL Integration – Full relational structure using pgAdmin 4.
+
 🗂️ Database Structure
 
-I created a database called library_management_system in pgAdmin 4.
-It contains 7 main tables:
+Database name: library_management_system
 
 Table	Description
-users	Stores user details and roles (admin, librarian, user).
-books	Contains all book details.
-borrow_records	(Optional) Keeps track of borrowed books.
-requests	Stores librarian requests to add or remove books.
-logs	Tracks admin actions (approvals, rejections, updates).
-roles	Defines user roles.
-permissions	Maps roles to their allowed actions.
-⚙️ API Routes Overview
-🔑 Auth Routes (/api/auth)
-Method	Endpoint	Access	Description
-POST	/signup	Public	Create new user
-POST	/login	Public	Login and get JWT
-POST	/logout	Authenticated	Logout user
-GET	/me	Authenticated	Get logged-in user data
-📚 Book Routes (/api/books)
-Method	Endpoint	Access	Description
-GET	/get-book	Public	Get all books
-GET	/get-book/:id	Public	Get book by ID
-POST	/add-book	Admin	Add a new book
-PUT	/edit-book/:id	Admin	Edit a book
-DELETE	/remove-book/:id	Admin	Delete a book
-POST	/request-add	Librarian	Request to add a new book
-POST	/request-delete/:id	Librarian	Request to delete a book
-🧑‍💼 Admin Routes (/api/admin)
-Method	Endpoint	Access	Description
-GET	/requests	Admin	Get all pending librarian requests
-POST	/requests/:id/approve	Admin	Approve librarian request
-PUT	/requests/:id/reject	Admin	Reject librarian request
-POST	/requests/:id/revoke	Admin	Revoke a previously approved request
-PUT	/users/:id/role	Admin	Update a user’s role
-GET	/logs	Admin	View action logs
-🔐 Middlewares
-protectedRoute
-
-Verifies JWT token.
-
-Ensures user is authenticated before accessing protected endpoints.
-
-authorizeRoles(...roles)
-
-Restricts route access to specific roles (e.g., "admin", "librarian").
-
-🧠 How Authentication Works
-
-User signs up / logs in → receives a JWT token.
-
-The token is sent in Authorization header as Bearer <token>.
-
-protectedRoute middleware validates the token and attaches user info to the request.
-
-authorizeRoles() checks the user’s role to determine access level.
-
-Admins can directly manage data, while Librarians must request admin approval for restricted actions.
-
-💾 Setup Instructions
-1. Clone the repository
-git clone https://github.com/abdirabi11/library-management-system.git
-cd library-management-system
-
-2. Install dependencies
-npm install
-
-3. Setup environment variables
-
-Create a .env file:
-
-PORT=5000
-DATABASE_URL=postgresql://username:password@localhost:5432/library_management_system
-JWT_SECRET=your_jwt_secret
-
-4. Run database (via pgAdmin or psql)
-
-Make sure your PostgreSQL database is running and accessible.
-
-5. Start the server
-npm run dev
-
-✅ Testing
-
-You can test all routes using Postman or Thunder Client.
-Make sure to:
-
-Register an Admin, Librarian, and User.
-
-Login to get JWT tokens.
-
-Test role-based access for each endpoint.
-
-🧱 Folder Structure
+users	User details with roles (admin, librarian, user).
+books	Library books data (title, author, etc.).
+requests	Requests created by librarians to add or remove books.
+logs	Admin action logs (approvals, rejections, role changes).
+roles	Role definitions.
+permissions	Role-based permissions.
+borrow_records	(Optional) Tracks borrowed books and returns.
+📦 Folder Structure
 📦 library-management-system
  ┣ 📂controller
  ┃ ┣ 📜auth.controller.js
@@ -147,10 +56,109 @@ Test role-based access for each endpoint.
  ┃ ┣ 📜book.route.js
  ┃ ┗ 📜admin.route.js
  ┣ 📜server.js
+ ┣ 📜package.json
  ┗ 📜.env
+
+🔐 Middleware Logic
+🧾 protectedRoute
+
+Checks for a valid JWT in the request headers.
+
+Rejects unauthenticated users.
+
+🧰 authorizeRoles(...roles)
+
+Restricts endpoints to users with specific roles.
+
+Example: authorizeRoles("admin") → only admins allowed.
+
+🧩 API Endpoints
+🔑 Auth Routes (/api/auth)
+Method	Endpoint	Access	Description
+POST	/signup	Public	Register new user
+POST	/login	Public	Authenticate user
+POST	/logout	Authenticated	Logout user
+GET	/me	Authenticated	Get logged user info
+📚 Book Routes (/api/books)
+Method	Endpoint	Access	Description
+GET	/get-book	Public	Get all books
+GET	/get-book/:id	Public	Get book by ID
+POST	/add-book	Admin	Add new book
+PUT	/edit-book/:id	Admin	Edit book
+DELETE	/remove-book/:id	Admin	Delete book
+POST	/request-add	Librarian	Request new book
+POST	/request-delete/:id	Librarian	Request book deletion
+🧑‍💼 Admin Routes (/api/admin)
+Method	Endpoint	Access	Description
+GET	/requests	Admin	View all librarian requests
+POST	/requests/:id/approve	Admin	Approve request
+PUT	/requests/:id/reject	Admin	Reject request
+POST	/requests/:id/revoke	Admin	Revoke approved request
+PUT	/users/:id/role	Admin	Update user role
+GET	/logs	Admin	View all admin action logs
+⚡ Authentication Flow
+flowchart LR
+A[User Sign Up / Login] --> B[JWT Token Created]
+B --> C[Token Stored in Cookie / Header]
+C --> D[protectedRoute Middleware]
+D --> E[authorizeRoles Middleware]
+E --> F[Access Granted / Denied]
+
+🧱 Setup & Installation
+1️⃣ Clone the Repository
+git clone https://github.com/abdirabi11/Pern-Library-Management-System.git
+cd library-management-system
+
+2️⃣ Install Dependencies
+npm install
+
+3️⃣ Create .env File
+PORT=5000
+DATABASE_URL=postgresql://username:password@localhost:5432/library_management_system
+JWT_SECRET=your_jwt_secret
+
+4️⃣ Run the Server
+npm run dev
+
+
+Server should now run on
+👉 http://localhost:5006
+
+🧪 Testing with Postman
+
+Signup as Admin, Librarian, and User.
+
+Login and copy your JWT token.
+
+Send it in the Authorization header as:
+
+Authorization: Bearer <your_token>
+
+
+Test access levels:
+
+Admin → Full access
+
+Librarian → Limited with request actions
+
+User → Read-only access
+
+🧠 Example Use-Case
+
+A Librarian finds a new book → sends a request to Admin (/request-add).
+
+Admin approves → Book is added to the main collection.
+
+All actions are logged → Admin can review logs anytime.
 
 🧑‍💻 Author
 
-Abdirabi Yusuf Adan
+👤 Abdirabi Yusuf Adan
 Junior Full-Stack Developer | Focused on MERN & PostgreSQL
-🌐 GitHub Profile
+🌐 GitHub
+
+💼 Passionate about building scalable and secure backend systems.
+
+📜 License
+
+This project is licensed under the MIT License – feel free to use and modify it.
