@@ -1,155 +1,142 @@
-📚 Library Management System (LMS)
+🧩 Library Management System API
 
-A Role-Based Library Management System built with Node.js, Express, and PostgreSQL, featuring secure authentication, layered authorization, and a request-approval workflow between librarians and admins.
 
-🌟 Overview
 
-This project provides a multi-role system where:
 
-Admins manage users, books, and librarian requests.
 
-Librarians can edit/view books and request actions (add/delete) that require admin approval.
 
-Users can browse and view available books.
 
-Designed for enterprise-style role separation and scalable backend architecture.
 
-⚙️ Tech Stack
-Layer	Technology
-Backend Framework	Express.js (Node.js)
-Database	PostgreSQL (pgAdmin 4)
-Authentication	JSON Web Tokens (JWT)
-Environment Management	dotenv
-Request Testing	Postman / Thunder Client
-🧠 Key Features
+🌟 First Impression
 
-✅ JWT Authentication – Secure login, signup, and token-based session control.
-✅ Role Authorization – Admin, Librarian, and User roles with custom middleware.
-✅ Book Management – CRUD for books, plus librarian request system.
-✅ Request Approval Workflow – Librarians send requests to admin for approval or rejection.
-✅ Action Logs – Every admin action is recorded for traceability.
-✅ PostgreSQL Integration – Full relational structure using pgAdmin 4.
+Welcome to the Library Management System API!
+This backend is secure, modular, and role-based with logging and request approval workflows.
+It’s designed for admins, librarians, and students to manage books, authors, and borrowing seamlessly.
 
-🗂️ Database Structure
+🔑 Tech Stack
 
-Database name: library_management_system
+Node.js & Express – Server & API
 
-Table	Description
-users	User details with roles (admin, librarian, user).
-books	Library books data (title, author, etc.).
-requests	Requests created by librarians to add or remove books.
-logs	Admin action logs (approvals, rejections, role changes).
-roles	Role definitions.
-permissions	Role-based permissions.
-borrow_records	(Optional) Tracks borrowed books and returns.
-📦 Folder Structure
-📦 library-management-system
- ┣ 📂controller
- ┃ ┣ 📜auth.controller.js
- ┃ ┣ 📜book.controller.js
- ┃ ┗ 📜admin.controller.js
- ┣ 📂middleware
- ┃ ┣ 📜protectedRoute.js
- ┃ ┗ 📜authorizeRoles.js
- ┣ 📂routes
- ┃ ┣ 📜auth.route.js
- ┃ ┣ 📜book.route.js
- ┃ ┗ 📜admin.route.js
- ┣ 📜server.js
- ┣ 📜package.json
- ┗ 📜.env
+PostgreSQL – Relational Database
 
-🔐 Middleware Logic
-🧾 protectedRoute
+JWT & bcryptjs – Authentication & Password Security
 
-Checks for a valid JWT in the request headers.
+uuid – Unique Identifiers
 
-Rejects unauthenticated users.
+dotenv – Environment Configuration
 
-🧰 authorizeRoles(...roles)
+📚 Features & Roles
+Admin
 
-Restricts endpoints to users with specific roles.
+Add, edit, delete books directly
 
-Example: authorizeRoles("admin") → only admins allowed.
+Approve/reject librarian requests
 
-🧩 API Endpoints
-🔑 Auth Routes (/api/auth)
-Method	Endpoint	Access	Description
-POST	/signup	Public	Register new user
-POST	/login	Public	Authenticate user
-POST	/logout	Authenticated	Logout user
-GET	/me	Authenticated	Get logged user info
-📚 Book Routes (/api/books)
-Method	Endpoint	Access	Description
-GET	/get-book	Public	Get all books
-GET	/get-book/:id	Public	Get book by ID
-POST	/add-book	Admin	Add new book
-PUT	/edit-book/:id	Admin	Edit book
-DELETE	/remove-book/:id	Admin	Delete book
-POST	/request-add	Librarian	Request new book
-POST	/request-delete/:id	Librarian	Request book deletion
-🧑‍💼 Admin Routes (/api/admin)
-Method	Endpoint	Access	Description
-GET	/requests	Admin	View all librarian requests
-POST	/requests/:id/approve	Admin	Approve request
-PUT	/requests/:id/reject	Admin	Reject request
-POST	/requests/:id/revoke	Admin	Revoke approved request
-PUT	/users/:id/role	Admin	Update user role
-GET	/logs	Admin	View all admin action logs
-⚡ Authentication Flow
-flowchart LR
-A[User Sign Up / Login] --> B[JWT Token Created]
-B --> C[Token Stored in Cookie / Header]
-C --> D[protectedRoute Middleware]
-D --> E[authorizeRoles Middleware]
-E --> F[Access Granted / Denied]
+Access action logs
+
+Librarian
+
+Request to add or delete books
+
+Actions logged for accountability
+
+Student
+
+Borrow and return books
+
+View borrowed books
+
+Requests logged for admin approval
+
+Extra Features
+
+🔐 Role-based access control
+
+📝 Audit logging for all critical actions
+
+🌱 Clean folder structure for easy maintenance
 
 🧱 Setup & Installation
 1️⃣ Clone the Repository
 git clone https://github.com/abdirabi11/Pern-Library-Management-System.git
 cd library-management-system
 
-2️⃣ Install Dependencies
+2️⃣ Install dependencies
 npm install
 
-3️⃣ Create .env File
-PORT=5000
-DATABASE_URL=postgresql://username:password@localhost:5432/library_management_system
-JWT_SECRET=your_jwt_secret
+3️⃣ Set up environment variables
 
-4️⃣ Run the Server
+Create .env:
+
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
+DB_HOST=localhost
+DB_NAME=your_db_name
+DB_PORT=5432
+JWT_SECRET=your_jwt_secret
+NODE_ENV=development
+
+4️⃣ Run the server
 npm run dev
 
+5️⃣ Test endpoints
 
-Server should now run on
-👉 http://localhost:5006
+Use Postman or Insomnia.
+Protected routes require Bearer token.
 
-🧪 Testing with Postman
+📚 API Overview
+Auth 🔑
+Method	Endpoint	Roles	Description
+POST	/signup	all	Register new user
+POST	/login	all	Login user
+POST	/logout	all	Logout user
+GET	/me	authenticated	Get current user info
+Books 📖
+Method	Endpoint	Roles	Description
+GET	/get-book	all	List all books
+GET	/get-book/:uuid	all	Get book by UUID
+POST	/add-book	admin	Add a book
+PUT	/edit-book/:uuid	admin	Edit a book
+DELETE	/remove-book/:uuid	admin	Delete a book
+Librarian Requests 📝
+Method	Endpoint	Roles	Description
+POST	/request-add	librarian	Request to add a book
+POST	/request-delete/:uuid	librarian	Request to delete a book
+Student Borrowing 📚
+Method	Endpoint	Roles	Description
+POST	/borrow-book/:uuid	student	Borrow a book
+POST	/return-book/:uuid	student	Return a borrowed book
+GET	/borrowed-book	student	View borrowed books
+🗂️ Folder Structure
+├─ controllers/
+│   ├─ admin.controller.js
+│   ├─ auth.controller.js
+│   ├─ book.controller.js
+│   ├─ librarian.controller.js
+│   └─ student.controller.js
+├─ middleware/
+│   ├─ authorizeRoles.js
+│   └─ protectedRoute.js
+├─ routes/
+│   ├─ authRoutes.js
+│   └─ bookRoutes.js
+├─ utils/
+│   └─ validators.js
+├─ config/
+│   └─ db.js
+└─ server.js
 
-Signup as Admin, Librarian, and User.
+🌟 Action Logging
 
-Login and copy your JWT token.
+All critical actions are recorded in actions_log with:
 
-Send it in the Authorization header as:
+Action type
 
-Authorization: Bearer <your_token>
+Performer (UUID + Name)
 
+Entity affected
 
-Test access levels:
-
-Admin → Full access
-
-Librarian → Limited with request actions
-
-User → Read-only access
-
-🧠 Example Use-Case
-
-A Librarian finds a new book → sends a request to Admin (/request-add).
-
-Admin approves → Book is added to the main collection.
-
-All actions are logged → Admin can review logs anytime.
+Timestamp.
 
 🧑‍💻 Author
 

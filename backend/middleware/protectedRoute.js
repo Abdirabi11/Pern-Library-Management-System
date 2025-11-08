@@ -10,7 +10,7 @@ export const protectedRoute= async(req, res, next)=>{
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = {id: decoded.userId, ...decoded}; // e.g. { userId: 3, iat: ..., exp: ... }
+        req.user = {uuid: decoded.uuid, ...decoded}
         next();
     } catch (err) {
         console.error("JWT verification failed:", err.message);

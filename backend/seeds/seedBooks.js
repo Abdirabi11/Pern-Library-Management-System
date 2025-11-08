@@ -7,23 +7,27 @@ const seedBooks = async () => {
         for(const book of bookSeeds){
             const { title, author, description, publishedYear, totalCopies, availableCopies, coverImage }=book
 
-            const existingAuthor = await pool.query("SELECT id FROM authors WHERE name = $1", [author]);
-            let authorId;
+            const existingAuthor = await pool.query("SELECT uuid, name FROM authors WHERE name = $1", [author]);
+
+            let authorUuid;
+            let authorName
             
             if(existingAuthor.rows.length >0){
-                authorId = existingAuthor.rows[0].id;
+                authorUuid = existingAuthor.rows[0].uuid;
+                authorName= existingAuthor.rows[0].name
             }else{
                 const authorResult = await pool.query(
-                    "INSERT INTO authors (name) VALUES ($1) RETURNING id",
+                    "INSERT INTO authors (name) VALUES ($1) RETURNING uuid, name",
                     [author]
                 );
-                authorId = authorResult.rows[0].id;
+                authorUuid = authorResult.rows[0].uuid;
+                authorName= authorResult.rows[0].name
             }
 
             await pool.query(
-                `INSERT INTO books (title, author_id, description, published_year, total_copies, available_copies, cover_image)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-                [title, authorId, description, publishedYear, totalCopies, availableCopies, coverImage]
+                `INSERT INTO books (title, author_uuid, author_name, description, published_year, total_copies, available_copies, cover_image)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                [title, authorUuid, authorName, description, publishedYear, totalCopies, availableCopies, coverImage]
             );
         }
 

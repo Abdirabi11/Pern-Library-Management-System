@@ -1,6 +1,7 @@
 import { pool } from "../config/db.js";
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
+import { v4 as uuidv4 } from "uuid";
 
 export const signup= async (req, res)=>{
     const {name, email, password}= req.body;
@@ -13,10 +14,6 @@ export const signup= async (req, res)=>{
 		if (!emailRegex.test(email)) {
 			return res.status(400).json({ success: false, message: "Invalid email" });
 		}
-
-        if(password.length < 6){
-            return res.json({success: false, message: "Password"})
-        }
 
         if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(password)){
             return res.status(400).json({ 
@@ -32,16 +29,18 @@ export const signup= async (req, res)=>{
         const salt= await bcrypt.genSalt(12)
         const hashedPassword= await bcrypt.hash(password, salt)
 
+        const newUuid = uuidv4(); 
+
         const result= await pool.query(
-            "INSERT INTO users (name, email, password_hash) VALUES ($1,$2,$3) RETURNING *",
-            [name, email, hashedPassword]
+            "INSERT INTO users (uuid, name, email, password_hash) VALUES ($1,$2,$3,$4) RETURNING *",
+            [newUuid, name, email, hashedPassword]
         )
 
         const newUser = result.rows[0];
 
-        const token= jwt.sign({ id: newUser.id, role: newUser.role}, process.env.JWT_SECRET,{
-            expiresIn: "15m"
-        })
+        const token= jwt.sign({ uuid: newUser.uuid, role: newUser.role, name: newUser.name }, 
+            process.env.JWT_SECRET,{ expiresIn: "15m" }
+        )
 
         res.status(201).json({
             success: true,
@@ -69,12 +68,12 @@ export const login= async (req, res)=>{
             return res.status(400).json({ success: false, message: "User not found" });
           }
 
-        const isPasswordCorrect= bcrypt.compare(password, user.password_hash)
+        const isPasswordCorrect= await bcrypt.compare(password, user.password_hash)
         if(!isPasswordCorrect){
             return res.status(400).json({success: false, message:"inavlid credentials"})
         }
 
-        const token= jwt.sign({userId: user.id, role: user.role}, process.env.JWT_SECRET, {
+        const token= jwt.sign({uuid: user.uuid,name: user.name, role: user.role}, process.env.JWT_SECRET, {
             expiresIn:"15m"
         })
 
@@ -90,7 +89,7 @@ export const login= async (req, res)=>{
             message: "Login successful",
             token,
             user: {
-                id: user.id,
+                uuid: user.uuid,
                 name: user.name,
                 email: user.email,
                 role: user.role,
@@ -114,9 +113,9 @@ export const logout= async (req, res)=>{
 
 export const getUser= async(req, res)=>{
     try {
-        const userId = req.user.id;
+        const userUuid = req.user.uuid;
 
-        const result = await pool.query("SELECT * FROM users WHERE id= $1", [userId]);
+        const result = await pool.query("SELECT * FROM users WHERE uuid= $1", [userUuid]);
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: "User not found" });
         }
