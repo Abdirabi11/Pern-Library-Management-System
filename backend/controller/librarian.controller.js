@@ -1,10 +1,14 @@
 import { pool } from "../config/db.js"
+import { AppError } from "../utils/appError.js";
 import { isValidUUID } from "../utils/validators.js";
 
 export const requestAddBook= async (req, res)=>{
     try {
         const { title, description, author, publishedYear, totalCopies, availableCopies, coverImage } = req.body;
-
+        if(!title || !author || !description || !publishedYear || !totalCopies || !availableCopies || !coverImage
+            ){
+                throw new AppError("All fields must be filled", 400);     
+        }
         const requesterUuid = req.user?.uuid;
         const librarianUuid= req.user?.uuid
 
@@ -35,25 +39,13 @@ export const requestDeleteBook= async (req, res)=>{
     const requesterUuid = req.user?.uuid;
     const librarianUuid= req.user?.uuid
     try {
-        if (!isValidUUID(uuid)) {
-            return res.status(404).json({
-              success: false,
-              message: "Book not found",
-            });
-        }
-
+        if (!isValidUUID(uuid))  throw new AppError("Invalid UUID format", 400);
         const bookResult = await pool.query(
             "SELECT title FROM books WHERE uuid = $1",
             [uuid]
         );
 
-        if (bookResult.rows.length === 0) {
-            return res.status(404).json({
-              success: false,
-              message: "Book not found",
-            });
-        }
-    
+        if (bookResult.rows.length === 0) throw new AppError("Book not found", 404)
         const bookName= bookResult.rows[0].title;
 
         await pool.query(`INSERT INTO requests (requester_uuid, request_type, book_data, remarks) 
@@ -66,11 +58,7 @@ export const requestDeleteBook= async (req, res)=>{
              VALUES ($1, $2, $3)`,
             [librarianUuid, "Request_delete_book", `Librarian ${req.user.name} (UUID:${librarianUuid}) requested to remove book's name: ${bookName}`]
         );
-
-        res.status(201).json({
-            success: true,
-            message: "Request to delete book sent to admin for approval."
-        });
+        res.status(201).json({success: true, message: "Request to delete book sent to admin for approval." });
     } catch (err) {
         console.log("Error in requestDeleteBook:", err.message);
         res.status(500).json({ success: false, message: "Internal server error" });
