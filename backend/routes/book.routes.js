@@ -1,4 +1,5 @@
 import express from "express"
+import { getMonthlyBorrowStats } from "../controller/Analytics.controller.js";
 import { 
     addBook, 
     editBook, 
@@ -27,7 +28,7 @@ router.post("/request-add", protectedRoute, authorizeRoles("librarian"), request
 router.post("/request-delete/:uuid", protectedRoute, authorizeRoles("librarian"), requestDeleteBook)
 
 // Student borrow-routes
-router.post("/borrow-book/:uuid", protectedRoute, authorizeRoles("student"), borrowBook)
+router.post("/monthlyBorrow", protectedRoute, authorizeRoles("student"), getMonthlyBorrowStats)
 router.get("/borrowed-book", protectedRoute, authorizeRoles("student"), getBorrowedBook)
 router.post("/return-book/:recordUuid", protectedRoute, authorizeRoles("student"), returnBook)
 
