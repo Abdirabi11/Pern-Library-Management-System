@@ -2,6 +2,8 @@ import { pool } from "../config/db.js"
 import { AppError } from "../utils/appError.js";
 import { isValidUUID } from "../utils/validators.js";
 
+///* Librarian: handles check-ins, checkouts, and fines
+
 export const requestAddBook= async (req, res)=>{
     try {
         const { title, description, author, publishedYear, totalCopies, availableCopies, coverImage } = req.body;

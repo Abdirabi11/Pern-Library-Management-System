@@ -5,7 +5,7 @@ const seedBooks = async () => {
     try {
         console.log("📚 Seeding books...");
         for(const book of bookSeeds){
-            const { title, author, description, publishedYear, totalCopies, availableCopies, coverImage }=book
+            const { title, author, description, category, publishedYear, totalCopies, availableCopies, coverImage }=book
 
             const existingAuthor = await pool.query("SELECT uuid, name FROM authors WHERE name = $1", [author]);
 
@@ -25,9 +25,9 @@ const seedBooks = async () => {
             }
 
             await pool.query(
-                `INSERT INTO books (title, author_uuid, author_name, description, published_year, total_copies, available_copies, cover_image)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                [title, authorUuid, authorName, description, publishedYear, totalCopies, availableCopies, coverImage]
+                `INSERT INTO books (title, author_uuid, author_name, description, category, published_year, total_copies, available_copies, cover_image)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [title, authorUuid, authorName, description, category, publishedYear, totalCopies, availableCopies, coverImage]
             );
         }
 

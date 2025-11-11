@@ -5,7 +5,9 @@ import {
     editBook, 
     removeBook, 
     getAllBooks, 
-    getBookByUuid
+    getBookByUuid,
+    getBooksByCategory,
+    searchBooks
 } from "../controller/book.controller.js";
 import { requestAddBook, requestDeleteBook } from "../controller/librarian.controller.js";
 import { borrowBook, getBorrowedBook, returnBook } from "../controller/student.controller.js";
@@ -15,8 +17,10 @@ import { validateBook } from "../middleware/validateBook.js";
 
 const router = express.Router()
 
-router.get("/get-book", getAllBooks)
-router.get("/get-book/:uuid", getBookByUuid)
+router.get("/getBook", getAllBooks)
+router.get("/getBook/:uuid", getBookByUuid)
+router.get("/getBook/category/:category", getBooksByCategory)
+router.get("/search", searchBooks)
 
 // Only admin can add, edit, or delete directly
 router.post("/add-book", protectedRoute, validateBook, authorizeRoles("admin"), addBook)
@@ -28,7 +32,7 @@ router.post("/request-add", protectedRoute, authorizeRoles("librarian"), request
 router.post("/request-delete/:uuid", protectedRoute, authorizeRoles("librarian"), requestDeleteBook)
 
 // Student borrow-routes
-router.post("/monthlyBorrow", protectedRoute, authorizeRoles("student"), getMonthlyBorrowStats)
+router.post("/borrowBook", protectedRoute, authorizeRoles("student"), borrowBook)
 router.get("/borrowed-book", protectedRoute, authorizeRoles("student"), getBorrowedBook)
 router.post("/return-book/:recordUuid", protectedRoute, authorizeRoles("student"), returnBook)
 

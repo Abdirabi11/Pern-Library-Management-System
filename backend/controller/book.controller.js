@@ -9,9 +9,9 @@ export const addBook= async (req, res)=>{
     const performerName= req.user?.name;
     const role= req.user?.role;
 
-    const {title, author, description, publishedYear, totalCopies, availableCopies, coverImage}= req.body
+    const {title, author, description, category, publishedYear, totalCopies, availableCopies, coverImage}= req.body
     try {
-       if(!title || !author || !description || !publishedYear || !totalCopies || !availableCopies || !coverImage
+       if(!title || !author || !description || !category || !publishedYear || !totalCopies || !availableCopies || !coverImage
         ){
             throw new AppError("All fields must be filled", 400);     
         }
@@ -19,10 +19,10 @@ export const addBook= async (req, res)=>{
         const authorUuid = await findOrCreateAuthor(author);
 
         const result = await pool.query(
-            `INSERT INTO books (title, author_uuid, description, published_year, total_copies, available_copies, cover_image) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO books (title, author_uuid, description, category, published_year, total_copies, available_copies, cover_image) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING id, uuid, title`,
-            [title, authorUuid, description, publishedYear, totalCopies, availableCopies, coverImage]
+            [title, authorUuid, description, category, publishedYear, totalCopies, availableCopies, coverImage]
         );
 
         const bookUuid = result.rows[0].uuid;
@@ -54,6 +54,7 @@ export const getAllBooks= async (req, res)=>{
             b.uuid  AS book_uuid,
             b.title,
             b.description,
+            b.category,
             a.name AS author_name,
             a.uuid AS author_uuid,
             b.published_year,
@@ -65,7 +66,9 @@ export const getAllBooks= async (req, res)=>{
          LEFT JOIN authors a ON b.author_uuid = a.uuid
          ORDER BY b.created_at DESC
         `);
-        if(result.rows.length === 0) throw new AppError("No book found", 404);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, messgae:"Book not found" });
+        };
         res.status(200).json({success: true, data: { books: result.rows } });
     } catch (err) {
         console.log("Error in getBooks controller", err.message);
@@ -82,6 +85,7 @@ export const getBookByUuid= async (req, res)=>{
             b.uuid,
             b.title,
             b.description,
+            b.category,
             a.name AS author_name,
             b.published_year,
             b.total_copies,
@@ -93,10 +97,42 @@ export const getBookByUuid= async (req, res)=>{
          LEFT JOIN authors a ON b.author_uuid = a.uuid
          WHERE b.uuid = $1
         `, [uuid])
-        if (result.rows.length === 0) throw new AppError("Book not found", 404);
-        res.status(200).json({ success: true, data: { book }});
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, messgae:"Book not found" });
+        };
+        res.status(200).json({ success: true, data: result.rows});
     } catch (err) {
         console.log("Error in getBookById controller", err.message);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
+
+export const getBooksByCategory= async(req, res)=>{
+    const {category}= req.params;
+    try {
+        const result= await pool.query(`
+            SELECT
+                b.uuid,
+                b.title,
+                b.description,
+                b.category,
+                a.name AS author_name,
+                b.published_year,
+                b.total_copies,
+                b.available_copies,
+                b.cover_image,
+                b.created_at,
+                a.uuid AS author_uuid
+            FROM books b
+            LEFT JOIN authors a ON b.author_uuid = a.uuid
+            WHERE LOWER(b.category) = LOWER($1)
+        `, [category])
+        if (result.rows.length === 0){
+            return res.status(404).json({ success: false, message: "No books found for this category" });
+        }
+        res.status(200).json({ success: true, data: result.rows});
+    } catch (err) {
+        console.log("Error in getBooksByCategory controller", err.message);
         res.status(500).json({ success: false, message: "Internal server error" });
     }
 }
@@ -112,6 +148,7 @@ export const editBook= async(req, res)=>{
         const columnMap = {
             title: "title",
             description: "description",
+            category: "category",
             publishedYear: "published_year",
             totalCopies: "total_copies",
             availableCopies: "available_copies",
@@ -129,7 +166,9 @@ export const editBook= async(req, res)=>{
             values.push(updates[key]);
             index++;
         }
-        if (fields.length === 0 && !updates.authorName) throw new AppError("No field to update", 400);
+        if (fields.length === 0 && !updates.authorName){
+            return res.status(400).json({ success: false, message: "No field to update" });
+        }
 
         let authorName = existingBook.rows[0].author_name;
         let authorUuid = existingBook.rows[0].author_uuid;
@@ -181,7 +220,9 @@ export const removeBook= async (req, res)=>{
             LEFT JOIN authors a ON b.author_uuid = a.uuid
             WHERE b.uuid = $1
         `, [uuid]);
-        if(existingBook.rows.length === 0) throw new AppError("Book not found", 404);
+        if(existingBook.rows.length === 0){
+            return res.status(404).json({ success: false, messgae:"Book not found" });
+        }
 
         const { title, author_name } = existingBook.rows[0];
 
@@ -201,3 +242,46 @@ export const removeBook= async (req, res)=>{
     }
 }
 
+// Indexing & Search
+// To make search fast:
+
+// CREATE INDEX idx_books_title_description
+// ON books
+// USING GIN (to_tsvector('english', title || ' ' || description));
+// Then you can do:
+
+// SELECT * FROM books
+// WHERE to_tsvector('english', title || ' ' || description)
+// @@ to_tsquery('harry & potter');
+
+
+export const searchBooks= async (req, res)=>{
+    try {
+        const {q}= req.query;
+        if(!q || q.trim().length < 3){
+            return res.status(400).json({success: false, message: "Please enter at least 3 characters to search."});
+        }
+        const tsQuery= q.trim().split(/\s+/).join(" & ");
+        const result= await pool.query(`
+            SELECT
+                b.uuid,
+                b.title,
+                b.description,
+                b.category,
+                a.name AS author_name,
+                b.published_year,
+                b.cover_image,
+                ts_rank(to_tsvector('english', b.title || ' ' || b.description || ' ' || b.category), to_tsquery('english', $1)) AS rank
+            FROM books b
+            LEFT JOIN authors a ON b.author_uuid = a.uuid
+            WHERE to_tsvector('english', b.title || ' ' || b.description || ' ' || b.category)
+            @@ to_tsquery('english', $1)
+            ORDER BY rank DESC
+            LIMIT 10;
+        `, [tsQuery])
+        res.status(200).json({success: true, total: result.rows.length, suggestions: result.rows});
+    } catch (err) {
+        console.log("Error in searchBooks controller", err.message);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+}
