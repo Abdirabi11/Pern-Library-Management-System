@@ -78,18 +78,18 @@ export const login= async (req, res)=>{
         const {email, password}= req.body;
         if(!email || !password){
             return res.status(400).json({success: false, message: "All fields are required"})
-        }
+        };
 
-        const userResult= await pool.query("SELECT * FROM users WHERE email = $1", [email])
-        const user= userResult.rows[0]
+        const userResult= await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        const user= userResult.rows[0];
         if (!user) {
             return res.status(400).json({ success: false, message: "User not found" });
-          }
+        };
 
-        const valid= await bcrypt.compare(password, user.password_hash)
+        const valid= await bcrypt.compare(password, user.password_hash);
         if(!valid){
             return res.status(400).json({success: false, message:"inavlid credentials"})
-        }
+        };
 
         const accessToken = jwt.sign(
             { uuid: user.uuid, name: user.name, role: user.role },
@@ -101,14 +101,14 @@ export const login= async (req, res)=>{
             expiresIn: REFRESH_TOKEN_EXPIRES,
         });
 
+        await redisClient.set(`refresh:${user.uuid}`, refreshToken, { ex: REFRESH_TOKEN_TTL });
+
         res.cookie("token", accessToken,{
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
             maxAge: 15 * 60 * 1000, // 15min
-        })
-
-        await redisClient.set(`refresh:${user.uuid}`, refreshToken, { ex: REFRESH_TOKEN_TTL });
+        });
 
         res.cookie("refreshToken", refreshToken, {
             httpOnly: true,
@@ -120,7 +120,6 @@ export const login= async (req, res)=>{
         res.status(200).json({
             success: true,
             message: "Login successful",
-            token: accessToken,
             user: { uuid: user.uuid, name: user.name, email: user.email, role: user.role },
         });
     } catch (err) {
@@ -133,13 +132,48 @@ export const logout= async (req, res)=>{
     try {
         const userUuid = req.user?.uuid;
         if (userUuid) await redisClient.del(`refresh:${userUuid}`);
+
+        res.clearCookie("token");
         res.clearCookie("refreshToken");
+
         res.status(200).json({ success: true, message: "Logged out successfully" });
     } catch (err) {
         console.log("Error in logout controller", err.message);
 		res.status(500).json({ success: false, message: "Internal server error" }); 
     }
 }
+
+export const refreshToken = async (req, res) => {
+    const token = req.cookies?.refreshToken;
+    if (!token)
+      return res.status(401).json({ success: false, message: "Refresh token missing" });
+  
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+      const storedToken = await redisClient.get(`refresh:${decoded.uuid}`);
+      if (storedToken !== token)
+        return res.status(403).json({ success: false, message: "Invalid refresh token" });
+
+      const newAccessToken = jwt.sign(
+        { uuid: decoded.uuid, role: decoded.role, name: decoded.name },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.ACCESS_TOKEN_EXPIRES }
+      );
+  
+      res.cookie("token", newAccessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 15 * 60 * 1000,
+      });
+  
+      res.status(200).json({ success: true, token: newAccessToken });
+    } catch (err) {
+      console.error("Error in refreshToken controller:", err.message);
+      res.status(403).json({ success: false, message: "Invalid or expired refresh token" });
+    }
+  };
+  
 
 export const getUser= async(req, res)=>{
     try {
@@ -148,8 +182,7 @@ export const getUser= async(req, res)=>{
         const result = await pool.query("SELECT * FROM users WHERE uuid= $1", [userUuid]);
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: "User not found" });
-        }
-
+        };
         res.status(200).json({success: true, user: result.rows[0]})
     } catch (err) {
         console.log("Error in getUser controller", err.message);
