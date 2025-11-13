@@ -5,6 +5,7 @@ import cors from "cors"
 import authRoutes from "./routes/auth.routes.js"
 import bookRoutes from "./routes/book.routes.js"
 import adminRoutes from "./routes/admin.routes.js"
+import dashboardRoutes from "./routes/dashboard.routes.js"
 import { errorHandler } from "./middleware/errorHandler.js"
 
 dotenv.config()
@@ -19,6 +20,7 @@ app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use("/api/auth", authRoutes)
 app.use("/api/books", bookRoutes)
 app.use("/api/admin", adminRoutes)
+app.use("/api/admin/dashboard", dashboardRoutes)
 
 app.use(errorHandler);
 
