@@ -1,6 +1,5 @@
 import { pool } from "../config/db.js"
 
-
 export const getMonthlyBorrowStats= async (req, res)=>{
     try {
         const monthlyBorrow= await pool.query(`

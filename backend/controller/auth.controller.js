@@ -2,6 +2,11 @@ import { pool } from "../config/db.js";
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
 import { v4 as uuidv4 } from "uuid";
+import { redisClient } from "../config/redis.js";
+
+const ACCESS_TOKEN_EXPIRES = "15m";
+const REFRESH_TOKEN_EXPIRES = "7d";
+const REFRESH_TOKEN_TTL = 7 * 24 * 60 * 60;
 
 export const signup= async (req, res)=>{
     const {name, email, password}= req.body;
@@ -10,11 +15,10 @@ export const signup= async (req, res)=>{
             return res.status(400).json({success: false, message: "All fields required"})
         }
 
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(email)) {
-			return res.status(400).json({ success: false, message: "Invalid email" });
-		}
-
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+            return res.status(400).json({ success: false, message: "Invalid email" });
+        }
+        
         if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(password)){
             return res.status(400).json({ 
                 message:"Password must be at least 8 characters long, include upper & lowercase letters, a number, and a special character."
@@ -38,15 +42,30 @@ export const signup= async (req, res)=>{
 
         const newUser = result.rows[0];
 
-        const token= jwt.sign({ uuid: newUser.uuid, role: newUser.role, name: newUser.name }, 
-            process.env.JWT_SECRET,{ expiresIn: "15m" }
-        )
+        const accessToken = jwt.sign(
+            { uuid: newUser.uuid, name: newUser.name, role: newUser.role },
+            process.env.JWT_SECRET,
+            { expiresIn: ACCESS_TOKEN_EXPIRES }
+        );
+      
+        const refreshToken = jwt.sign({ uuid: newUser.uuid }, process.env.JWT_REFRESH_SECRET, {
+            expiresIn: REFRESH_TOKEN_EXPIRES,
+        });
+
+        await redisClient.set(`refresh:${newUser.uuid}`, refreshToken, { ex: REFRESH_TOKEN_TTL });
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: REFRESH_TOKEN_TTL * 1000,
+        });
 
         res.status(201).json({
             success: true,
             message: "User registered successfully",
-            token,
-            user: newUser
+            token: accessToken,
+            user: { uuid: newUser.uuid, name: newUser.name, email: newUser.email, role: newUser.role },
         });
     } catch (err) {
         console.log("Error in signup controller", err.message);
@@ -62,39 +81,48 @@ export const login= async (req, res)=>{
         }
 
         const userResult= await pool.query("SELECT * FROM users WHERE email = $1", [email])
-
         const user= userResult.rows[0]
         if (!user) {
             return res.status(400).json({ success: false, message: "User not found" });
           }
 
-        const isPasswordCorrect= await bcrypt.compare(password, user.password_hash)
-        if(!isPasswordCorrect){
+        const valid= await bcrypt.compare(password, user.password_hash)
+        if(!valid){
             return res.status(400).json({success: false, message:"inavlid credentials"})
         }
 
-        const token= jwt.sign({uuid: user.uuid,name: user.name, role: user.role}, process.env.JWT_SECRET, {
-            expiresIn:"15m"
-        })
+        const accessToken = jwt.sign(
+            { uuid: user.uuid, name: user.name, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: ACCESS_TOKEN_EXPIRES }
+        );
+      
+        const refreshToken = jwt.sign({ uuid: user.uuid }, process.env.JWT_REFRESH_SECRET, {
+            expiresIn: REFRESH_TOKEN_EXPIRES,
+        });
 
-        res.cookie("token", token,{
+        res.cookie("token", accessToken,{
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "strict",
             maxAge: 15 * 60 * 1000, // 15min
         })
 
+        await redisClient.set(`refresh:${user.uuid}`, refreshToken, { ex: REFRESH_TOKEN_TTL });
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: REFRESH_TOKEN_TTL * 1000,
+        });
+
         res.status(200).json({
             success: true,
             message: "Login successful",
-            token,
-            user: {
-                uuid: user.uuid,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            }
-        })
+            token: accessToken,
+            user: { uuid: user.uuid, name: user.name, email: user.email, role: user.role },
+        });
     } catch (err) {
         console.log("Error in signup controller", err.message);
 		res.status(500).json({ success: false, message: "Internal server error" });
@@ -103,8 +131,10 @@ export const login= async (req, res)=>{
 
 export const logout= async (req, res)=>{
     try {
-        res.clearCookie("token", {path: "/"})
-        res.status(200).json({success: true, message: "Logged out successfully"})
+        const userUuid = req.user?.uuid;
+        if (userUuid) await redisClient.del(`refresh:${userUuid}`);
+        res.clearCookie("refreshToken");
+        res.status(200).json({ success: true, message: "Logged out successfully" });
     } catch (err) {
         console.log("Error in logout controller", err.message);
 		res.status(500).json({ success: false, message: "Internal server error" }); 
