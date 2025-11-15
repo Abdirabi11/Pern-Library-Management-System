@@ -172,7 +172,7 @@ export const refreshToken = async (req, res) => {
       console.error("Error in refreshToken controller:", err.message);
       res.status(403).json({ success: false, message: "Invalid or expired refresh token" });
     }
-  };
+};
   
 
 export const getUser= async(req, res)=>{
@@ -188,4 +188,4 @@ export const getUser= async(req, res)=>{
         console.log("Error in getUser controller", err.message);
 		res.status(500).json({ success: false, message: "Internal server error" }); 
     }
-}
+};
